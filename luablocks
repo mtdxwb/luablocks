@@ -1,0 +1,198 @@
+#!/usr/bin/env lua
+
+-- vim:ft=lua
+-- @author Dongxu Zhu
+-- @since 2026
+--
+-- need: lua-posix
+
+-- lua-posix
+local posix = require("posix")
+local signal = require("posix.signal")
+
+-- var
+local runtime_dir = os.getenv("XDG_RUNTIME_DIR")
+local home = os.getenv("HOME")
+
+-- pid
+local pid = posix.getpid().pid
+local pid_file = io.open(runtime_dir .. "/luablocks.pid", "w")
+pid_file:write(pid)
+io.close(pid_file)
+
+local fifo_path = runtime_dir .. "/luablocks.fifo"
+
+local sec = 0
+
+-- time blocks
+local function update_time()
+	local icons = {
+		["01"] = "󱐿 ",
+		["02"] = "󱑀 ",
+		["03"] = "󱑁 ",
+		["04"] = "󱑂 ",
+		["05"] = "󱑃 ",
+		["06"] = "󱑄 ",
+		["07"] = "󱑅 ",
+		["08"] = "󱑆 ",
+		["09"] = "󱑇 ",
+		["10"] = "󱑈 ",
+		["11"] = "󱑉 ",
+		["12"] = "󱑊 ",
+	}
+
+	time = icons[os.date("%I", os.time())] .. os.date("%H:%M", os.time())
+end
+
+-- packages blocks
+local function update_packages()
+	packages = io.open(home .. "/.cache/checkupdates-cron.status"):read()
+end
+
+-- weather blocks
+local function update_weather()
+	weather = io.open(home .. "/.cache/wttr.status"):read()
+end
+
+-- bat blocks
+local function update_bat()
+	-- use your own BAT dir to replace 'BAT0'
+	local status = io.open("/sys/class/power_supply/BAT0/status", "r"):read()
+	local level = io.open("/sys/class/power_supply/BAT0/capacity", "r"):read()
+
+	local icon = ""
+	local icons = {
+		["1"] = "󰁻",
+		["2"] = "󰁼",
+		["3"] = "󰁽",
+		["4"] = "󰁽",
+		["5"] = "󰁾",
+		["6"] = "󰁿",
+		["7"] = "󰂀",
+		["8"] = "󰂁",
+		["9"] = "󰂂",
+		["10"] = "󰁹",
+	}
+
+	if status == "Discharging" then
+		icon = level:sub(1, -2) == nil and "󰁺" or icons[level:sub(1, -2)]
+	elseif status == "Not charging" or status == "Full" then
+		icon = " "
+	elseif status == "Charging" then
+		icon = " "
+	end
+
+	bat = icon .. level .. "%"
+end
+
+-- backlight blocks
+local function update_backlight()
+	-- replace 'amdgpu_bl2'
+	local actual_brightness = io.open("/sys/class/backlight/amdgpu_bl2/actual_brightness", "r"):read()
+	local max_brightness = io.open("/sys/class/backlight/amdgpu_bl2/max_brightness", "r"):read()
+
+	local result, _ = math.modf(tonumber(actual_brightness) * 100 / tonumber(max_brightness))
+	local level = tostring(result)
+
+	local icons = {
+		["1"] = "󱩎 ",
+		["2"] = "󱩏 ",
+		["3"] = "󱩐 ",
+		["4"] = "󱩑 ",
+		["5"] = "󱩒 ",
+		["6"] = "󱩓 ",
+		["7"] = "󱩔 ",
+		["8"] = "󱩕 ",
+		["9"] = "󱩖 ",
+		["10"] = "󰛨 ",
+	}
+
+	backlight = level:sub(1, -2) == nil and "󰛩 " .. result .. "%" or icons[level:sub(1, -2)] .. result .. "%"
+end
+
+-- [[
+-- modes:
+-- -> like luablocks [-s | --stdout] => mode = "stdout"
+-- ]]
+local modes = {
+	["stdout"] = function(stdout)
+		print(string.format("%s", stdout))
+	end,
+	["xsetroot"] = function(stdout)
+		os.execute("xsetroot -name '" .. stdout .. "'")
+	end,
+	["fifo"] = function(stdout)
+		fifo_file:write(stdout .. "\n")
+		fifo_file:flush()
+	end,
+}
+local arg_to_mode = {
+	["-s"] = "stdout",
+	["--stdout"] = "stdout",
+	["-f"] = "fifo",
+	["--fifo"] = "fifo",
+	["-x"] = "xsetroot",
+	["--xsetroot"] = "xsetroot",
+}
+local mode = arg[1] == nil and "stdout" or arg_to_mode[arg[1]]
+
+-- fifo
+if mode == "fifo" then
+	local is_file = posix.stat(fifo_path)
+
+	if is_file then
+		os.remove(fifo_path)
+		posix.mkfifo(fifo_path)
+	else
+		posix.mkfifo(fifo_path)
+	end
+
+	fifo_file = io.open(fifo_path, "w")
+end
+
+update_packages()
+update_weather()
+-- update_backlight()
+
+local function display()
+	local stdout = string.format("%s[%s][%s][%s]", packages, bat, weather, time)
+
+	modes[mode](stdout)
+end
+
+local SIGRTMIN = signal.SIGRTMIN or 34
+signal.signal(SIGRTMIN + 2, function()
+	update_backlight()
+	display()
+end)
+signal.signal(SIGRTMIN + 4, function()
+	update_packages()
+	display()
+end)
+signal.signal(SIGRTMIN + 5, function()
+	update_weather()
+	display()
+end)
+
+while true do
+	posix.sleep(1)
+
+	if sec >= 99999 then
+		sec = 0
+	end
+
+	if sec % 5 == 0 then
+		update_time()
+	end
+	if sec % 5 == 0 then
+		update_bat()
+	end
+
+	if sec % 5 == 0 then
+		display()
+	end
+
+	sec = sec + 1
+end
+
+fifo_file:close()
