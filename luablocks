@@ -44,6 +44,14 @@ local function update_time()
 	time = icons[os.date("%I", os.time())] .. os.date("%H:%M", os.time())
 end
 
+-- volume blocks
+-- need: pamixer
+local function update_vol()
+	vol = io.popen("[ $(pamixer --get-mute) = 'false' ] && printf '🔊' || printf '🔇'"):read()
+		.. io.popen("pamixer --get-volume"):read()
+		.. "%"
+end
+
 -- packages blocks
 local function update_packages()
 	packages = io.open(home .. "/.cache/checkupdates-cron.status"):read()
@@ -168,17 +176,22 @@ if mode == "fifo" then
 	fifo_file = io.open(fifo_path, "w")
 end
 
+update_vol()
 update_packages()
 update_weather()
 update_backlight()
 
 local function display()
-	local stdout = string.format("%s[%s][%s][%s][%s]", packages, backlight, bat, weather, time)
+	local stdout = string.format("%s[%s %s][%s][%s][%s]", packages, vol, backlight, bat, weather, time)
 
 	modes[mode](stdout)
 end
 
 local SIGRTMIN = signal.SIGRTMIN or 34
+signal.signal(SIGRTMIN + 1, function()
+	update_vol()
+	display()
+end)
 signal.signal(SIGRTMIN + 2, function()
 	update_backlight()
 	display()
