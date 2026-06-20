@@ -87,9 +87,27 @@ end
 
 -- backlight blocks
 local function update_backlight()
-	-- replace 'amdgpu_bl2'
-	local actual_brightness = io.open("/sys/class/backlight/amdgpu_bl2/actual_brightness", "r"):read()
-	local max_brightness = io.open("/sys/class/backlight/amdgpu_bl2/max_brightness", "r"):read()
+	-- add your backlight dir
+	local cards = {
+		"nvidia_0",
+		"amdgpu_bl0",
+		"amdgpu_bl1",
+		"amdgpu_bl2",
+	}
+
+	local count = 0
+
+	for i = 1, #cards do
+		local is_dir = posix.stat("/sys/class/backlight/" .. cards[i])
+
+		if is_dir then
+			count = i
+			break
+		end
+	end
+
+	local actual_brightness = io.open("/sys/class/backlight/" .. cards[count] .. "/actual_brightness", "r"):read()
+	local max_brightness = io.open("/sys/class/backlight/" .. cards[count] .. "/max_brightness", "r"):read()
 
 	local result, _ = math.modf(tonumber(actual_brightness) * 100 / tonumber(max_brightness))
 	local level = tostring(result)
@@ -152,10 +170,10 @@ end
 
 update_packages()
 update_weather()
--- update_backlight()
+update_backlight()
 
 local function display()
-	local stdout = string.format("%s[%s][%s][%s]", packages, bat, weather, time)
+	local stdout = string.format("%s[%s][%s][%s][%s]", packages, backlight, bat, weather, time)
 
 	modes[mode](stdout)
 end
