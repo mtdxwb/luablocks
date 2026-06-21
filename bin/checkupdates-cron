@@ -1,0 +1,60 @@
+#!/usr/bin/sh
+
+# @author Dongxu Zhu
+# @since 2026
+# describle: check updates for packages
+# need: pacman-contrib
+
+packages_cache="$HOME/.cache/checkupdates-cron.packages"
+err_cache="$HOME/.cache/checkupdates-cron.err"
+cu_status_cache="$HOME/.cache/checkupdates-cron.status"
+current_packages="$HOME/.cache/checkupdates-cron.num"
+
+statusid="${XDG_RUNTIME_DIR}/luablocks.pid"
+
+update_cache() {
+	checkupdates --nocolor | awk '{print $1}' | sort > "$packages_cache"
+	checkupdates --nocolor | awk '{print $1}' | sort 2> "$err_cache"
+	cat "$packages_cache" > "$cu_status_cache"
+	pacman -Qq | wc -l > "$current_packages"
+}
+
+update_status() {
+	# if [ -z $(cat $packages_cache) ]; then
+	# 	color="c3e8e6"
+	# else
+	# 	color="a6e3a1"
+	# fi
+	packages_num=$(cat "$packages_cache" | wc -l)
+	if [ ${packages_num} != "0" ]; then
+		notify-send "It's time to update!" "$(cat ${packages_cache})"
+	fi
+	# printf "[^fg($color)󰏔 $packages_num^fg() ^fg(f9e2af) $current_packages^fg()]" > "$cu_status_cache"
+	printf "[󰏔 $packages_num  $(cat $current_packages)]" > "$cu_status_cache"
+	[ -f "$statusid" ] && kill -SIGRTMIN+4 "$(cat $statusid)"
+}
+
+if [ ! -f "$packages_cache" ] || [ ! -f "$cu_status_cache" ]; then
+	update_cache
+	update_status
+fi
+
+case "$1" in
+	--update | -u)
+		update_cache
+		update_status
+		;;
+esac
+
+last_time=$(stat -c "%Y" "$packages_cache")
+now_time=$(date +%s)
+interval=3600
+
+if [ $(( now_time - last_time )) -gt $interval ]; then
+	update_cache
+	update_status
+else
+	echo "Already updated"
+	exit
+fi
+

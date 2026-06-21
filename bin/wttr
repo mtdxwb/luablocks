@@ -1,0 +1,52 @@
+#!/usr/bin/sh
+
+# @author Dongxu Zhu
+# @since 2026
+# need: jq curl
+# form: wttr [-c | --city] "City Name"
+
+weather_cache="$HOME/.cache/wttr.cache"
+wttr_status_cache="$HOME/.cache/wttr.status"
+
+city=""
+count="0"
+
+statusid="$XDG_RUNTIME_DIR/luablocks.pid"
+
+update_weather() {
+	curl -s -4 wttr.in/${city} > "$weather_cache"
+}
+
+update_status() {
+	curl -s -4 wttr.in/${city}?format=1 | sed 's/ //g; s/\+//' > "$wttr_status_cache"
+	kill -SIGRTMIN+5 "$(cat $statusid)"
+}
+
+for arg in "$@"; do
+	case "$count" in
+		"city") city="$arg" count="0" ;;
+	esac
+
+	case "$arg" in
+		--city | -c) count="city" ;;
+		--weather | -w)
+			update_weather
+			cat "$weather_cache" ;;
+		--upbar | -u) count="0"; update_status ;;
+	esac
+done
+
+if [ ! -f "$wttr_status_cache" ]; then
+	update_status
+fi
+
+last_time=$(stat -c "%Y" "$wttr_status_cache")
+now_time=$(date +%s)
+interval=3600
+
+if [ $(( now_time - last_time )) -gt $interval ]; then
+	update_status
+else
+	echo "Already got weather"
+	exit 1
+fi
