@@ -24,6 +24,84 @@ local fifo_path = runtime_dir .. "/luablocks.fifo"
 
 local sec = 0
 
+-- cpu blocks
+local function update_cpu()
+	-- 读取 /proc/stat 的第一行 (汇总所有CPU核心)
+	local function read_cpu_stat()
+		local f = io.open("/proc/stat", "r")
+		if not f then
+			return nil
+		end
+		local line = f:read("*l") -- 读取第一行，如 "cpu  748 0 123 ..."
+		f:close()
+		return line
+	end
+
+	-- 解析CPU时间数据
+	local function parse_cpu_stat(line)
+		-- 按空格分割，并跳过第一个 "cpu" 字符串
+		local parts = {}
+		for part in line:gmatch("%S+") do
+			table.insert(parts, part)
+		end
+
+		-- 各列含义: user, nice, system, idle, iowait, irq, softirq, steal, guest, guest_nice
+		-- 详情: https://man7.org/linux/man-pages/man5/proc.5.html
+		local user = tonumber(parts[2]) or 0
+		local nice = tonumber(parts[3]) or 0
+		local system = tonumber(parts[4]) or 0
+		local idle = tonumber(parts[5]) or 0
+		local iowait = tonumber(parts[6]) or 0
+		local irq = tonumber(parts[7]) or 0
+		local softirq = tonumber(parts[8]) or 0
+		local steal = tonumber(parts[9]) or 0
+
+		-- 总时间 = 所有时间之和
+		local total = user + nice + system + idle + iowait + irq + softirq + steal
+		-- 空闲时间 = idle + iowait (有些计算方式只算idle)
+		local idle_time = idle + iowait
+
+		return total, idle_time
+	end
+
+	-- 获取CPU使用率 (%)
+	-- @param interval 采样间隔（秒），默认0.1秒
+	local function get_cpu_usage(interval)
+		interval = interval or 0.1
+
+		-- 第一次采样
+		local line1 = read_cpu_stat()
+		if not line1 then
+			return nil
+		end
+		local total1, idle1 = parse_cpu_stat(line1)
+
+		-- 等待一段时间
+		os.execute("sleep " .. interval)
+
+		-- 第二次采样
+		local line2 = read_cpu_stat()
+		if not line2 then
+			return nil
+		end
+		local total2, idle2 = parse_cpu_stat(line2)
+
+		-- 计算差值
+		local total_diff = total2 - total1
+		local idle_diff = idle2 - idle1
+
+		if total_diff == 0 then
+			return 0
+		end
+
+		-- 使用率 = (总时间增量 - 空闲时间增量) / 总时间增量 * 100
+		local usage = (total_diff - idle_diff) / total_diff * 100
+		return usage
+	end
+
+	cpu = string.format("%s%.2f%%", " ", get_cpu_usage())
+end
+
 -- time blocks
 local function update_time()
 	local icons = {
@@ -182,7 +260,7 @@ update_weather()
 update_backlight()
 
 local function display()
-	local stdout = string.format("%s[%s %s][%s][%s][%s]", packages, vol, backlight, bat, weather, time)
+	local stdout = string.format("[%s]%s[%s %s][%s][%s][%s]", cpu, packages, vol, backlight, bat, weather, time)
 
 	modes[mode](stdout)
 end
@@ -217,6 +295,10 @@ while true do
 	end
 	if sec % 5 == 0 then
 		update_bat()
+	end
+
+	if sec % 15 == 0 then
+		update_cpu()
 	end
 
 	if sec % 5 == 0 then
