@@ -3,6 +3,7 @@
 local M = {
 	name = "temp",
 	interval = 5,
+	signal = nil,
 	update = function()
 		local temp_file = io.open("/sys/class/thermal/thermal_zone0/temp", "r")
 		local temp_icon = ""

@@ -9,6 +9,7 @@
 -- lua-posix
 local posix = require("posix")
 local signal = require("posix.signal")
+local fcntl = require("posix.fcntl")
 
 -- bash -> export LUABLOCKS_CONFIG=~/.config/luablocks
 local config_dir = os.getenv("LUABLOCKS_CONFIG") or (os.getenv("HOME") .. "/.config/luablocks")
@@ -24,8 +25,6 @@ io.close(pid_file)
 
 local fifo_path = config.runtime_dir .. "/luablocks.fifo"
 local fifo_file
-
-local sec = 0
 
 -- [[
 -- modes:
@@ -59,10 +58,8 @@ if config.output_mode == "fifo" then
 
 	if is_file then
 		os.remove(fifo_path)
-		posix.mkfifo(fifo_path)
-	else
-		posix.mkfifo(fifo_path)
 	end
+	posix.mkfifo(fifo_path)
 
 	fifo_file = io.open(fifo_path, "w")
 end
@@ -92,15 +89,16 @@ end
 display()
 
 -- signal
-local SIGRTMIN = signal.SIGRTMIN or 34
 for _, mod in ipairs(module_list) do
 	if mod.signal then
-		signal.signal(SIGRTMIN + mod.signal, function()
+		signal.signal(config.signal + mod.signal, function()
 			mod.cached_output = mod.update() or ""
 			display()
 		end)
 	end
 end
+
+local sec = 0
 
 while true do
 	posix.sleep(1)
@@ -118,5 +116,3 @@ while true do
 		display()
 	end
 end
-
-io.close(fifo_file)

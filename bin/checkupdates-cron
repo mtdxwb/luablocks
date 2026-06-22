@@ -30,7 +30,7 @@ update_status() {
 		notify-send "It's time to update!" "$(cat ${packages_cache})"
 	fi
 	# printf "[^fg($color)󰏔 $packages_num^fg() ^fg(f9e2af) $current_packages^fg()]" > "$cu_status_cache"
-	printf "[󰏔 $packages_num  $(cat $current_packages)]" > "$cu_status_cache"
+	printf "󰏔 $packages_num  $(cat $current_packages)" > "$cu_status_cache"
 	[ -f "$statusid" ] && kill -SIGRTMIN+4 "$(cat $statusid)"
 }
 
