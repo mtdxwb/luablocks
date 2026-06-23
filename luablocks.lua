@@ -6,15 +6,56 @@
 --
 -- need: lua-posix
 
--- lua-posix
-local posix = require("posix")
-local signal = require("posix.signal")
+-- arg
+local help_text = [[
+Usage: luablocks [OPTION]
+
+Options:
+  -s, --stdout       Print status bar to stdout (default)
+  -f, --fifo         Write to FIFO (useful for dwm/other bars)
+  -x, --xsetroot     Set X root window name (for dwm)
+  -h, --help         Show this help message
+
+Examples:
+  luablocks -s       Print to stdout
+  luablocks -f       Write to $XDG_RUNTIME_DIR/luablocks.fifo
+  luablocks -x       Set xsetroot name
+]]
+
+local arg_to_mode = {
+	["-s"] = "stdout",
+	["--stdout"] = "stdout",
+	["-f"] = "fifo",
+	["--fifo"] = "fifo",
+	["-x"] = "xsetroot",
+	["--xsetroot"] = "xsetroot",
+}
+
+local function parse_args()
+	if arg[2] ~= nil then
+		print("* Err: too many args!\n")
+		os.exit()
+	end
+
+	if arg[1] == nil or arg[1] == "-h" or arg[1] == "--help" then
+		print(help_text)
+		os.exit()
+	end
+
+	return arg_to_mode[arg[1]]
+end
 
 -- bash -> export LUABLOCKS_CONFIG=~/.config/luablocks
 local config_dir = os.getenv("LUABLOCKS_CONFIG") or (os.getenv("HOME") .. "/.config/luablocks")
 package.path = config_dir .. "/blocks/?.lua;" .. config_dir .. "/?.lua;" .. package.path
 
 local config = require("config")
+
+config.output_mode = parse_args()
+
+-- lua-posix
+local posix = require("posix")
+local signal = require("posix.signal")
 
 -- pid
 local pid = posix.getpid().pid
@@ -41,15 +82,6 @@ local modes = {
 		fifo_file:flush()
 	end,
 }
-local arg_to_mode = {
-	["-s"] = "stdout",
-	["--stdout"] = "stdout",
-	["-f"] = "fifo",
-	["--fifo"] = "fifo",
-	["-x"] = "xsetroot",
-	["--xsetroot"] = "xsetroot",
-}
-config.output_mode = arg[1] == nil and "stdout" or arg_to_mode[arg[1]]
 
 -- fifo
 if config.output_mode == "fifo" then
