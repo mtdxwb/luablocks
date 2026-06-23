@@ -9,7 +9,6 @@
 -- lua-posix
 local posix = require("posix")
 local signal = require("posix.signal")
-local fcntl = require("posix.fcntl")
 
 -- bash -> export LUABLOCKS_CONFIG=~/.config/luablocks
 local config_dir = os.getenv("LUABLOCKS_CONFIG") or (os.getenv("HOME") .. "/.config/luablocks")
@@ -20,7 +19,7 @@ local config = require("config")
 -- pid
 local pid = posix.getpid().pid
 local pid_file = io.open(config.runtime_dir .. "/luablocks.pid", "w")
-pid_file:write(pid)
+pid_file:write(pid .. "\n")
 io.close(pid_file)
 
 local fifo_path = config.runtime_dir .. "/luablocks.fifo"
@@ -32,13 +31,13 @@ local fifo_file
 -- ]]
 local modes = {
 	["stdout"] = function(stdout)
-		print(string.format("[%s]", stdout))
+		print(string.format("%s", stdout))
 	end,
 	["xsetroot"] = function(stdout)
-		os.execute("xsetroot -name '[" .. stdout .. "]'")
+		os.execute("xsetroot -name '" .. stdout .. "'")
 	end,
 	["fifo"] = function(stdout)
-		fifo_file:write("[" .. stdout .. "]\n")
+		fifo_file:write(stdout .. "\n")
 		fifo_file:flush()
 	end,
 }
@@ -79,7 +78,7 @@ local function display()
 			table.insert(parts, mod.cached_output)
 		end
 	end
-	local stdout = table.concat(parts, "][") -- custom sep
+	local stdout = string.format("%s%s%s", config.head, table.concat(parts, config.sep), config.tail) -- custom sep
 	modes[config.output_mode](stdout)
 end
 

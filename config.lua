@@ -3,11 +3,14 @@ return {
 	runtime_dir = os.getenv("XDG_RUNTIME_DIR") or "/tmp",
 	home = os.getenv("HOME"),
 
+	-- format = function(m_table, sep, head, tail)
+	sep = "][",
+	head = "[",
+	tail = "]",
+
 	-- signal set
 	signal = require("posix.signal").SIGRTMIN or 34,
-
 	-- display order
-	-- modules_order = { "cpu", "temp", "packages", "vol", "backlight", "bat", "weather", "time" },
 	modules_order = { "cpu", "temp", "packages", "battery", "volume", "backlight", "weather", "time" },
 
 	-- backlight_cards

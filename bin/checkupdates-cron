@@ -20,18 +20,12 @@ update_cache() {
 }
 
 update_status() {
-	# if [ -z $(cat $packages_cache) ]; then
-	# 	color="c3e8e6"
-	# else
-	# 	color="a6e3a1"
-	# fi
 	packages_num=$(cat "$packages_cache" | wc -l)
 	if [ ${packages_num} != "0" ]; then
 		notify-send "It's time to update!" "$(cat ${packages_cache})"
 	fi
-	# printf "[^fg($color)󰏔 $packages_num^fg() ^fg(f9e2af) $current_packages^fg()]" > "$cu_status_cache"
 	printf "󰏔 $packages_num  $(cat $current_packages)" > "$cu_status_cache"
-	[ -f "$statusid" ] && kill -SIGRTMIN+4 "$(cat $statusid)"
+	kill -SIGRTMIN+4 "$(cat $statusid)"
 }
 
 if [ ! -f "$packages_cache" ] || [ ! -f "$cu_status_cache" ]; then
