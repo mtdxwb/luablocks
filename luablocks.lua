@@ -8,6 +8,7 @@
 
 -- arg
 local help_text = [[
+
 Usage: luablocks [OPTION]
 
 Options:
@@ -33,16 +34,21 @@ local arg_to_mode = {
 
 local function parse_args()
 	if arg[2] ~= nil then
-		print("* Err: too many args!\n")
+		io.stderr:write("* Err: too many args!\n")
 		os.exit()
 	end
 
 	if arg[1] == nil or arg[1] == "-h" or arg[1] == "--help" then
-		print(help_text)
+		io.stdout:write(help_text .. "\n")
 		os.exit()
 	end
 
-	return arg_to_mode[arg[1]]
+	if arg_to_mode[arg[1]] == nil then
+		io.stderr:write("* Err: args is wrong!\n")
+		os.exit()
+	else
+		return arg_to_mode[arg[1]]
+	end
 end
 
 -- bash -> export LUABLOCKS_CONFIG=~/.config/luablocks
@@ -51,17 +57,17 @@ package.path = config_dir .. "/blocks/?.lua;" .. config_dir .. "/?.lua;" .. pack
 
 local config = require("config")
 
-config.output_mode = parse_args()
+local mode = parse_args()
 
 -- lua-posix
 local posix = require("posix")
 local signal = require("posix.signal")
 
 -- pid
-local pid = posix.getpid().pid
-local pid_file = io.open(config.runtime_dir .. "/luablocks.pid", "w")
-pid_file:write(pid .. "\n")
-io.close(pid_file)
+-- local pid = posix.getpid().pid
+-- local pid_file = io.open(config.runtime_dir .. "/luablocks.pid", "w")
+-- pid_file:write(pid .. "\n")
+-- io.close(pid_file)
 
 local fifo_path = config.runtime_dir .. "/luablocks.fifo"
 local fifo_file
@@ -72,7 +78,8 @@ local fifo_file
 -- ]]
 local modes = {
 	["stdout"] = function(stdout)
-		print(string.format("%s", stdout))
+		io.stdout:write(stdout .. "\n")
+		io.stdout:flush()
 	end,
 	["xsetroot"] = function(stdout)
 		os.execute("xsetroot -name '" .. stdout .. "'")
@@ -84,7 +91,7 @@ local modes = {
 }
 
 -- fifo
-if config.output_mode == "fifo" then
+if mode == "fifo" then
 	local is_file = posix.stat(fifo_path)
 
 	if is_file then
@@ -111,7 +118,7 @@ local function display()
 		end
 	end
 	local stdout = string.format("%s%s%s", config.head, table.concat(parts, config.sep), config.tail) -- custom sep
-	modes[config.output_mode](stdout)
+	modes[mode](stdout)
 end
 
 for _, mod in ipairs(module_list) do
