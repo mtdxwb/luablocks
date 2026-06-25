@@ -1,11 +1,8 @@
 -- temp blocks
 
 local M = {
-	name = "temp",
-	interval = 5,
-	signal = nil,
-	update = function()
-		local temp_file = io.open("/sys/class/thermal/thermal_zone0/temp", "r")
+	command = function()
+		local temp_file = io.open(require("config").temp_path, "r")
 		local temp_icon = ""
 		local temp_num = ""
 		if temp_file then

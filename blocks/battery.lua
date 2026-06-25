@@ -1,23 +1,19 @@
 -- bat blocks
+local icons = {
+	["1"] = "󰁻",
+	["2"] = "󰁼",
+	["3"] = "󰁽",
+	["4"] = "󰁽",
+	["5"] = "󰁾",
+	["6"] = "󰁿",
+	["7"] = "󰂀",
+	["8"] = "󰂁",
+	["9"] = "󰂂",
+	["10"] = "󰁹",
+}
 
 local M = {
-	name = "battery",
-	interval = 15,
-	signal = nil,
-	update = function()
-		local icons = {
-			["1"] = "󰁻",
-			["2"] = "󰁼",
-			["3"] = "󰁽",
-			["4"] = "󰁽",
-			["5"] = "󰁾",
-			["6"] = "󰁿",
-			["7"] = "󰂀",
-			["8"] = "󰂁",
-			["9"] = "󰂂",
-			["10"] = "󰁹",
-		}
-
+	command = function()
 		local status = ""
 		local level = ""
 		local bat_icon = ""

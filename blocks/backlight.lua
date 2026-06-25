@@ -1,22 +1,20 @@
 -- backlight blocks
 
+local icons = {
+	["1"] = "󱩎 ",
+	["2"] = "󱩏 ",
+	["3"] = "󱩐 ",
+	["4"] = "󱩑 ",
+	["5"] = "󱩒 ",
+	["6"] = "󱩓 ",
+	["7"] = "󱩔 ",
+	["8"] = "󱩕 ",
+	["9"] = "󱩖 ",
+	["10"] = "󰛨 ",
+}
+
 local M = {
-	name = "backlight",
-	interval = nil,
-	signal = 2,
-	update = function()
-		local icons = {
-			["1"] = "󱩎 ",
-			["2"] = "󱩏 ",
-			["3"] = "󱩐 ",
-			["4"] = "󱩑 ",
-			["5"] = "󱩒 ",
-			["6"] = "󱩓 ",
-			["7"] = "󱩔 ",
-			["8"] = "󱩕 ",
-			["9"] = "󱩖 ",
-			["10"] = "󰛨 ",
-		}
+	command = function()
 		local cards = require("config").backlight_cards
 		local card = ""
 		for i = 1, #cards do

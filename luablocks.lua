@@ -51,23 +51,26 @@ local function parse_args()
 	end
 end
 
+-- lua-posix
+local posix = require("posix")
+local signal = require("posix.signal")
+
 -- bash -> export LUABLOCKS_CONFIG=~/.config/luablocks
-local config_dir = os.getenv("LUABLOCKS_CONFIG") or (os.getenv("HOME") .. "/.config/luablocks")
+if os.getenv("LUABLOCKS_CONFIG") == nil then
+	posix.setenv("LUABLOCKS_CONFIG", os.getenv("HOME") .. "/.config/luablocks", 1)
+end
+local config_dir = os.getenv("LUABLOCKS_CONFIG")
 package.path = config_dir .. "/blocks/?.lua;" .. config_dir .. "/?.lua;" .. package.path
 
 local config = require("config")
 
 local mode = parse_args()
 
--- lua-posix
-local posix = require("posix")
-local signal = require("posix.signal")
-
 -- pid
--- local pid = posix.getpid().pid
--- local pid_file = io.open(config.runtime_dir .. "/luablocks.pid", "w")
--- pid_file:write(pid .. "\n")
--- io.close(pid_file)
+local pid = posix.getpid().pid
+local pid_file = io.open(config.home .. "/.cache/luablocks/luablocks.pid", "w")
+pid_file:write(pid .. "\n")
+io.close(pid_file)
 
 local fifo_path = config.runtime_dir .. "/luablocks.fifo"
 local fifo_file
@@ -102,17 +105,42 @@ if mode == "fifo" then
 	fifo_file = io.open(fifo_path, "w")
 end
 
-local module_list = {} -- store in order
-for _, mod_name in ipairs(config.modules_order) do
-	local mod = require(mod_name)
-	mod.last_update = 0
-	mod.cached_output = ""
-	table.insert(module_list, mod)
+local blocks_list = {}
+
+for _, name in ipairs(config.blocks_order) do
+	local def = config.blocks[name]
+	local obj = {
+		name = name,
+		interval = def.interval,
+		update = "",
+		cached_output = "",
+	}
+
+	if def and def.type == "lua" then
+		obj.update = def.command
+	elseif def.type == "external" then
+		local cmd = def.command
+		obj.update = function()
+			local f = io.popen(cmd .. " 2>/dev/null", "r")
+			if not f then
+				return ""
+			end
+			local output = f:read("*l") or ""
+			f:close()
+			return output
+		end
+	else
+		io.stderr:write("Unknown module type for " .. name .. ", skipping\n")
+		goto continue
+	end
+
+	table.insert(blocks_list, obj)
+	::continue::
 end
 
 local function display()
 	local parts = {}
-	for _, mod in ipairs(module_list) do
+	for _, mod in ipairs(blocks_list) do
 		if mod.cached_output and mod.cached_output ~= "" then
 			table.insert(parts, mod.cached_output)
 		end
@@ -121,13 +149,13 @@ local function display()
 	modes[mode](stdout)
 end
 
-for _, mod in ipairs(module_list) do
+for _, mod in ipairs(blocks_list) do
 	mod.cached_output = mod.update() or ""
 end
 display()
 
 -- signal
-for _, mod in ipairs(module_list) do
+for _, mod in ipairs(blocks_list) do
 	if mod.signal then
 		signal.signal(config.signal + mod.signal, function()
 			mod.cached_output = mod.update() or ""
@@ -143,8 +171,8 @@ while true do
 	sec = sec + 1
 
 	local need_redraw = false
-	for _, mod in ipairs(module_list) do
-		if mod.interval and sec % mod.interval == 0 then
+	for _, mod in ipairs(blocks_list) do
+		if mod.interval ~= nil and sec % mod.interval == 0 then
 			mod.cached_output = mod.update() or ""
 			need_redraw = true
 		end

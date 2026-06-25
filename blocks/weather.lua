@@ -1,10 +1,7 @@
 -- weather blocks
 
 return {
-	name = "weather",
-	interval = nil,
-	signal = 5,
-	update = function()
+	command = function()
 		local f = io.open(require("config").home .. "/.cache/wttr.status")
 		local weather = ""
 
