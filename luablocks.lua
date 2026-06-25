@@ -112,6 +112,7 @@ for _, name in ipairs(config.blocks_order) do
 	local obj = {
 		name = name,
 		interval = def.interval,
+		signal = def.signal,
 		update = "",
 		cached_output = "",
 	}
