@@ -11,7 +11,7 @@ wttr_status_cache="$HOME/.cache/wttr.status"
 city=""
 count="0"
 
-statusid="$XDG_RUNTIME_DIR/luablocks.pid"
+statusid="$HOME/.cache/luablocks/luablocks.pid"
 
 update_weather() {
 	curl -s -4 wttr.in/${city} > "$weather_cache"

@@ -10,7 +10,7 @@ err_cache="$HOME/.cache/checkupdates-cron.err"
 cu_status_cache="$HOME/.cache/checkupdates-cron.status"
 current_packages="$HOME/.cache/checkupdates-cron.num"
 
-statusid="${XDG_RUNTIME_DIR}/luablocks.pid"
+statusid="$HOME/.cache/luablocks/luablocks.pid"
 
 update_cache() {
 	checkupdates --nocolor | awk '{print $1}' | sort > "$packages_cache"
